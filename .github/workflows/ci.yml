@@ -6,18 +6,31 @@ on:
   pull_request:
     branches: [main]
 
+env:
+  ZIG_VERSION: "0.15.2"
+
 jobs:
   # ── Job 1: Unit tests ─────────────────────────────────────────────────────
   test:
-    name: Unit tests (Zig 0.15.2)
+    name: Unit tests (Zig ${{ env.ZIG_VERSION }})
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Zig 0.15.2
-        uses: mlugg/setup-zig@v1
-        with:
-          version: "0.15.2"
+      - name: Install Zig ${{ env.ZIG_VERSION }}
+        run: |
+          ARCH=$(dpkg --print-architecture)
+          case "$ARCH" in
+            amd64) ZIG_ARCH="x86_64" ;;
+            arm64) ZIG_ARCH="aarch64" ;;
+            *) echo "Unsupported arch: $ARCH" && exit 1 ;;
+          esac
+          curl -fsSL "https://ziglang.org/download/${ZIG_VERSION}/zig-${ZIG_ARCH}-linux-${ZIG_VERSION}.tar.xz" \
+            | tar -xJ -C /opt
+          echo "/opt/zig-${ZIG_ARCH}-linux-${ZIG_VERSION}" >> "$GITHUB_PATH"
+
+      - name: Verify Zig version
+        run: zig version
 
       - name: Run tests
         run: zig build test

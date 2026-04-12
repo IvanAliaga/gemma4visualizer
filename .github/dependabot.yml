@@ -1,0 +1,17 @@
+version: 2
+updates:
+  # Mantiene las GitHub Actions actualizadas
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
+
+  # Mantiene la imagen base del Dockerfile actualizada
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+    labels:
+      - "dependencies"
