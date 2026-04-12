@@ -1,0 +1,19 @@
+.zig-cache/
+zig-out/
+*.o
+*.a
+*.so
+*.dylib
+
+# Python leftovers
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+
+# Temp audio files created by the server
+/tmp/g4v_*
+
+# OS
+.DS_Store
+Thumbs.db

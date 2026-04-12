@@ -1,0 +1,20 @@
+services:
+  gemma4visualizer:
+    build: .
+    container_name: gemma4visualizer
+    restart: unless-stopped
+    ports:
+      - "8090:8080"
+    environment:
+      # Ollama en el host Mac via host.docker.internal
+      # Cambia a la IP del contenedor de Ollama si lo tienes en Docker
+      OLLAMA_BASE: http://host.docker.internal:11434
+    extra_hosts:
+      # Necesario en Linux para que host.docker.internal funcione
+      - "host.docker.internal:host-gateway"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/api/health | grep -q ok || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s

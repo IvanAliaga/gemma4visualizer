@@ -1,0 +1,36 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # ── Job 1: Unit tests ─────────────────────────────────────────────────────
+  test:
+    name: Unit tests (Zig 0.15.2)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Zig 0.15.2
+        uses: mlugg/setup-zig@v1
+        with:
+          version: "0.15.2"
+
+      - name: Run tests
+        run: zig build test
+
+      - name: Build (ReleaseFast)
+        run: zig build -Doptimize=ReleaseFast
+
+  # ── Job 2: Docker build ───────────────────────────────────────────────────
+  docker:
+    name: Docker build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build --tag gemma4visualizer:ci .

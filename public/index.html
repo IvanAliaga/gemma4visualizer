@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gemma4 Visualizer</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --border: #2a2d3e;
+    --accent: #7c3aed;
+    --accent-hover: #6d28d9;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --success: #10b981;
+    --warning: #f59e0b;
+    --error: #ef4444;
+    --radius: 10px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* Header */
+  header {
+    padding: 16px 24px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  header h1 { font-size: 1.2rem; font-weight: 600; }
+  .health-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--muted);
+    transition: background 0.3s;
+  }
+  .health-dot.ok { background: var(--success); }
+  .health-dot.error { background: var(--error); }
+
+  /* Tabs */
+  .tabs {
+    display: flex;
+    gap: 4px;
+    padding: 12px 24px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .tab {
+    padding: 8px 20px;
+    border-radius: var(--radius) var(--radius) 0 0;
+    border: 1px solid transparent;
+    background: none;
+    color: var(--muted);
+    cursor: pointer;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+  }
+  .tab.active {
+    background: var(--surface);
+    border-color: var(--border);
+    border-bottom-color: var(--surface);
+    color: var(--text);
+    margin-bottom: -1px;
+  }
+  .tab:hover:not(.active) { color: var(--text); }
+
+  /* Panels */
+  .panels { flex: 1; }
+  .panel {
+    display: none;
+    padding: 24px;
+    height: 100%;
+  }
+  .panel.active { display: flex; flex-direction: column; gap: 16px; }
+
+  /* Chat panel */
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    min-height: 300px;
+    max-height: 60vh;
+    padding: 8px 0;
+  }
+  .message {
+    max-width: 80%;
+    padding: 12px 16px;
+    border-radius: var(--radius);
+    line-height: 1.6;
+    white-space: pre-wrap;
+    font-size: 0.95rem;
+  }
+  .message.user {
+    align-self: flex-end;
+    background: var(--accent);
+    border-radius: var(--radius) var(--radius) 4px var(--radius);
+  }
+  .message.assistant {
+    align-self: flex-start;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius) var(--radius) var(--radius) 4px;
+  }
+  .message.assistant.streaming::after {
+    content: '▊';
+    animation: blink 1s infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+
+  /* Input area */
+  .input-row {
+    display: flex;
+    gap: 8px;
+    align-items: flex-end;
+  }
+  textarea {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    padding: 12px;
+    font-size: 0.95rem;
+    resize: none;
+    min-height: 48px;
+    max-height: 160px;
+    font-family: inherit;
+    transition: border-color 0.2s;
+  }
+  textarea:focus { outline: none; border-color: var(--accent); }
+  textarea::placeholder { color: var(--muted); }
+
+  button {
+    padding: 10px 20px;
+    border-radius: var(--radius);
+    border: none;
+    cursor: pointer;
+    font-size: 0.9rem;
+    font-weight: 500;
+    transition: all 0.2s;
+  }
+  .btn-primary {
+    background: var(--accent);
+    color: white;
+  }
+  .btn-primary:hover { background: var(--accent-hover); }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  /* Vision panel */
+  .upload-zone {
+    border: 2px dashed var(--border);
+    border-radius: var(--radius);
+    padding: 40px;
+    text-align: center;
+    cursor: pointer;
+    transition: border-color 0.2s;
+    color: var(--muted);
+  }
+  .upload-zone:hover, .upload-zone.dragover { border-color: var(--accent); color: var(--text); }
+  .upload-zone input[type=file] { display: none; }
+  #preview-img {
+    max-width: 100%;
+    max-height: 300px;
+    border-radius: var(--radius);
+    display: none;
+    margin: 0 auto;
+  }
+
+  /* Audio panel */
+  .audio-controls {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .record-btn {
+    width: 56px; height: 56px;
+    border-radius: 50%;
+    background: var(--surface);
+    border: 2px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.4rem;
+    cursor: pointer;
+    transition: all 0.2s;
+    padding: 0;
+  }
+  .record-btn:hover { border-color: var(--error); }
+  .record-btn.recording {
+    background: var(--error);
+    border-color: var(--error);
+    animation: pulse 1s infinite;
+  }
+  @keyframes pulse { 0%,100%{transform:scale(1)} 50%{transform:scale(1.05)} }
+
+  .audio-status {
+    font-size: 0.9rem;
+    color: var(--muted);
+    flex: 1;
+  }
+  .audio-status.recording { color: var(--error); }
+  .audio-status.processing { color: var(--warning); }
+  .audio-status.retry { color: var(--warning); }
+
+  #audio-preview { display: none; width: 100%; }
+
+  /* Response area compartida */
+  .response-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 16px;
+    min-height: 120px;
+    max-height: 50vh;
+    overflow-y: auto;
+    white-space: pre-wrap;
+    font-size: 0.95rem;
+    line-height: 1.6;
+    color: var(--text);
+  }
+  .response-box.empty { color: var(--muted); font-style: italic; }
+
+  /* Model selector */
+  .model-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: var(--muted);
+  }
+  select {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 10px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    cursor: pointer;
+  }
+
+  /* Retry badge */
+  .retry-badge {
+    display: inline-block;
+    background: var(--warning);
+    color: #000;
+    font-size: 0.75rem;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-left: 8px;
+    font-weight: 600;
+  }
+
+  @media (max-width: 600px) {
+    .panel { padding: 16px; }
+    .message { max-width: 95%; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="health-dot" id="health-dot"></div>
+  <h1>Gemma4 Visualizer</h1>
+  <span style="color:var(--muted);font-size:0.8rem" id="health-text">Verificando Ollama...</span>
+</header>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('chat')">💬 Chat</button>
+  <button class="tab" onclick="switchTab('vision')">🖼️ Visión</button>
+  <button class="tab" onclick="switchTab('audio')">🎤 Audio</button>
+</div>
+
+<div class="panels">
+
+  <!-- ── CHAT ── -->
+  <div class="panel active" id="panel-chat">
+    <div class="model-row">
+      Modelo:
+      <select id="chat-model">
+        <option value="gemma4:e4b">gemma4:e4b</option>
+        <option value="gemma4:e2b-it-q4_K_M">gemma4:e2b-it-q4_K_M</option>
+        <option value="llama3.2">llama3.2</option>
+      </select>
+    </div>
+    <div class="messages" id="messages"></div>
+    <div class="input-row">
+      <textarea id="chat-input" placeholder="Escribe tu mensaje..." rows="2"
+        onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChat()}"></textarea>
+      <button class="btn-primary" onclick="sendChat()" id="chat-btn">Enviar</button>
+    </div>
+  </div>
+
+  <!-- ── VISION ── -->
+  <div class="panel" id="panel-vision">
+    <div class="model-row">
+      Modelo:
+      <select id="vision-model">
+        <option value="gemma4:e4b">gemma4:e4b</option>
+        <option value="llava">llava</option>
+        <option value="moondream">moondream</option>
+      </select>
+    </div>
+    <div class="upload-zone" id="drop-zone" onclick="document.getElementById('img-input').click()"
+      ondragover="event.preventDefault();this.classList.add('dragover')"
+      ondragleave="this.classList.remove('dragover')"
+      ondrop="handleDrop(event)">
+      <input type="file" id="img-input" accept="image/*" onchange="handleImageSelect(event)">
+      <p>📷 Arrastra una imagen o haz clic para seleccionar</p>
+    </div>
+    <img id="preview-img" alt="preview">
+    <textarea id="vision-prompt" placeholder="¿Qué quieres saber sobre la imagen?" rows="2"></textarea>
+    <button class="btn-primary" onclick="sendVision()" id="vision-btn">Analizar imagen</button>
+    <div class="response-box empty" id="vision-response">La respuesta aparecerá aquí...</div>
+  </div>
+
+  <!-- ── AUDIO ── -->
+  <div class="panel" id="panel-audio">
+    <div class="model-row">
+      Modelo:
+      <select id="audio-model">
+        <option value="gemma4:e4b">gemma4:e4b</option>
+      </select>
+    </div>
+    <textarea id="audio-prompt" placeholder="¿Qué quieres preguntar sobre el audio?" rows="2">Transcribe y describe el contenido de este audio.</textarea>
+    <div class="audio-controls">
+      <button class="record-btn" id="record-btn" onclick="toggleRecording()">🎤</button>
+      <div style="flex:1">
+        <div class="audio-status" id="audio-status">Haz clic para grabar</div>
+        <audio id="audio-preview" controls style="display:none;width:100%;margin-top:6px"></audio>
+      </div>
+      <button class="btn-primary" onclick="sendAudio()" id="audio-send-btn" disabled>Procesar audio</button>
+    </div>
+    <div class="response-box empty" id="audio-response">La respuesta aparecerá aquí...</div>
+  </div>
+
+</div>
+
+<script>
+// ─── Estado global ────────────────────────────────────────────────────────────
+let currentTab = 'chat';
+let imageBase64 = null;
+
+// ─── Health check ─────────────────────────────────────────────────────────────
+async function checkHealth() {
+  try {
+    const r = await fetch('/api/health');
+    const d = await r.json();
+    const dot = document.getElementById('health-dot');
+    const txt = document.getElementById('health-text');
+    if (d.status === 'ok') {
+      dot.className = 'health-dot ok';
+      txt.textContent = 'Ollama activo';
+    } else {
+      dot.className = 'health-dot error';
+      txt.textContent = 'Ollama no disponible';
+    }
+  } catch {
+    document.getElementById('health-dot').className = 'health-dot error';
+    document.getElementById('health-text').textContent = 'Sin conexión';
+  }
+}
+checkHealth();
+setInterval(checkHealth, 30000);
+
+// ─── Tabs ─────────────────────────────────────────────────────────────────────
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t, i) => {
+    const names = ['chat','vision','audio'];
+    t.classList.toggle('active', names[i] === tab);
+  });
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + tab).classList.add('active');
+  currentTab = tab;
+}
+
+// ─── CHAT ─────────────────────────────────────────────────────────────────────
+async function sendChat() {
+  const input = document.getElementById('chat-input');
+  const text = input.value.trim();
+  if (!text) return;
+
+  const model = document.getElementById('chat-model').value;
+  addMessage('user', text);
+  input.value = '';
+
+  const assistantMsg = addMessage('assistant', '');
+  assistantMsg.classList.add('streaming');
+
+  document.getElementById('chat-btn').disabled = true;
+
+  try {
+    const body = JSON.stringify({
+      model,
+      messages: [{ role: 'user', content: text }],
+      stream: true
+    });
+
+    const response = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body
+    });
+
+    await streamResponse(response, (token) => {
+      assistantMsg.classList.remove('streaming');
+      assistantMsg.textContent += token;
+      assistantMsg.scrollIntoView({ behavior: 'smooth', block: 'end' });
+    });
+  } catch (e) {
+    assistantMsg.textContent = '❌ Error: ' + e.message;
+  } finally {
+    assistantMsg.classList.remove('streaming');
+    document.getElementById('chat-btn').disabled = false;
+  }
+}
+
+function addMessage(role, text) {
+  const div = document.createElement('div');
+  div.className = `message ${role}`;
+  div.textContent = text;
+  document.getElementById('messages').appendChild(div);
+  div.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  return div;
+}
+
+// ─── VISION ───────────────────────────────────────────────────────────────────
+function handleImageSelect(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  loadImage(file);
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  document.getElementById('drop-zone').classList.remove('dragover');
+  const file = e.dataTransfer.files[0];
+  if (file && file.type.startsWith('image/')) loadImage(file);
+}
+
+function loadImage(file) {
+  const reader = new FileReader();
+  reader.onload = (e) => {
+    imageBase64 = e.target.result.split(',')[1];
+    const img = document.getElementById('preview-img');
+    img.src = e.target.result;
+    img.style.display = 'block';
+    document.getElementById('drop-zone').style.display = 'none';
+  };
+  reader.readAsDataURL(file);
+}
+
+async function sendVision() {
+  if (!imageBase64) return alert('Selecciona una imagen primero');
+  const prompt = document.getElementById('vision-prompt').value.trim() || 'Describe esta imagen detalladamente';
+  const model = document.getElementById('vision-model').value;
+  const resp = document.getElementById('vision-response');
+
+  resp.className = 'response-box';
+  resp.textContent = '';
+  document.getElementById('vision-btn').disabled = true;
+
+  try {
+    const body = JSON.stringify({
+      model,
+      prompt,
+      images: [imageBase64],
+      stream: true
+    });
+
+    const response = await fetch('/api/vision', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body
+    });
+
+    await streamResponse(response, (token) => {
+      resp.textContent += token;
+    });
+  } catch (e) {
+    resp.textContent = '❌ Error: ' + e.message;
+  } finally {
+    document.getElementById('vision-btn').disabled = false;
+  }
+}
+
+// ─── AUDIO — MediaRecorder → WAV → gemma4:e4b nativo ─────────────────────────
+let audioBlob = null;
+let mediaRecorder = null;
+let audioChunks = [];
+let isRecording = false;
+
+async function toggleRecording() {
+  if (isRecording) stopRecording(); else await startRecording();
+}
+
+async function startRecording() {
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm' : 'audio/ogg';
+    mediaRecorder = new MediaRecorder(stream, { mimeType });
+    audioChunks = [];
+    mediaRecorder.ondataavailable = e => { if (e.data.size > 0) audioChunks.push(e.data); };
+    mediaRecorder.onstop = () => {
+      audioBlob = new Blob(audioChunks, { type: mimeType });
+      const preview = document.getElementById('audio-preview');
+      preview.src = URL.createObjectURL(audioBlob);
+      preview.style.display = 'block';
+      document.getElementById('audio-send-btn').disabled = false;
+      setAudioStatus('Listo — presiona "Procesar audio"', '');
+      stream.getTracks().forEach(t => t.stop());
+    };
+    mediaRecorder.start(100);
+    isRecording = true;
+    document.getElementById('record-btn').classList.add('recording');
+    document.getElementById('record-btn').textContent = '⏹';
+    setAudioStatus('Grabando... presiona ⏹ para detener', 'recording');
+    document.getElementById('audio-send-btn').disabled = true;
+  } catch (e) {
+    alert('Error al acceder al micrófono: ' + e.message);
+  }
+}
+
+function stopRecording() {
+  if (mediaRecorder && isRecording) {
+    mediaRecorder.stop();
+    isRecording = false;
+    document.getElementById('record-btn').classList.remove('recording');
+    document.getElementById('record-btn').textContent = '🎤';
+  }
+}
+
+async function sendAudio() {
+  if (!audioBlob) return;
+  const model = document.getElementById('audio-model').value;
+  const text  = document.getElementById('audio-prompt').value.trim() || 'Describe what you hear';
+  const resp  = document.getElementById('audio-response');
+
+  resp.className = 'response-box';
+  resp.textContent = '';
+  document.getElementById('audio-send-btn').disabled = true;
+  setAudioStatus('Procesando con ffmpeg + gemma4...', 'processing');
+
+  try {
+    // Convertir a base64 y enviar al backend
+    const b64 = await new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = e => resolve(e.target.result.split(',')[1]);
+      reader.onerror = reject;
+      reader.readAsDataURL(audioBlob);
+    });
+
+    const response = await fetch('/api/audio', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model, text, audio: b64 })
+    });
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      resp.textContent = '❌ ' + (err.error || `HTTP ${response.status}`);
+      setAudioStatus('Error', '');
+      return;
+    }
+
+    await streamResponse(response, token => { resp.textContent += token; });
+    setAudioStatus('Completado ✓', '');
+  } catch (e) {
+    resp.textContent = '❌ ' + e.message;
+    setAudioStatus('Error', '');
+  } finally {
+    document.getElementById('audio-send-btn').disabled = false;
+  }
+}
+
+function setAudioStatus(text, cls) {
+  const el = document.getElementById('audio-status');
+  el.textContent = text;
+  el.className = 'audio-status' + (cls ? ' ' + cls : '');
+}
+
+// ─── Streaming NDJSON reader ──────────────────────────────────────────────────
+async function streamResponse(response, onToken) {
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+
+    buffer += decoder.decode(value, { stream: true });
+    const lines = buffer.split('\n');
+    buffer = lines.pop(); // guardar línea incompleta
+
+    for (const line of lines) {
+      const trimmed = line.trim();
+      if (!trimmed) continue;
+      try {
+        const json = JSON.parse(trimmed);
+
+        // Formato /api/chat
+        if (json.message?.content) {
+          onToken(json.message.content, trimmed);
+        }
+        // Formato /api/generate
+        else if (json.response) {
+          onToken(json.response, trimmed);
+        }
+        // Mensajes de control (retry, error)
+        else if (json.type || json.error) {
+          onToken('', trimmed);
+        }
+      } catch {
+        // Línea no es JSON válido, ignorar
+      }
+    }
+  }
+}
+</script>
+</body>
+</html>

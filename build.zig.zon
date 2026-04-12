@@ -1,0 +1,7 @@
+.{
+    .name = .gemma4visualizer,
+    .version = "0.1.0",
+    .fingerprint = 0xb1bdaff5e6c8a414,
+    .dependencies = .{},
+    .paths = .{""},
+}
