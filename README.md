@@ -155,6 +155,52 @@ zig build test
 
 El modelo por defecto es `gemma4:e4b`. Podés cambiarlo por request incluyendo `"model": "tu-modelo"` en el body. El endpoint de audio usa `gemma4:e4b` por defecto si no se especifica modelo.
 
+## Known Issues & Mitigations
+
+El audio con gemma4:e4b tiene bugs activos en Ollama/llama.cpp. Este proxy los mitiga automáticamente.
+
+| Issue | Estado | Mitigación implementada |
+|---|---|---|
+| [#15333 — Crash intermitente durante forward pass](https://github.com/ollama/ollama/issues/15333) | Abierto | Retry automático recortando 0.5s del audio por intento (cambia el token count y esquiva el error de alineación en los kernels GGML) |
+| [#15427 — Sin documentación oficial de audio](https://github.com/ollama/ollama/issues/15427) | Abierto | El proxy fuerza WAV 16kHz mono con header RIFF y ordena las modalidades correctamente |
+| [#11798 — Campo `audio` no existe en la API](https://github.com/ollama/ollama/issues/11798) | Abierto | El audio se pasa por el campo `images` con los magic bytes RIFF/WAVE correctos |
+
+El proxy también fuerza `num_ctx=8192` en requests de audio para evitar que los embeddings compitan con el KV cache.
+
+<details>
+<summary>🇬🇧 English</summary>
+
+## Known Issues & Mitigations
+
+There are active bugs in Ollama/llama.cpp affecting audio with gemma4:e4b. This proxy mitigates them automatically.
+
+| Issue | Status | Mitigation |
+|---|---|---|
+| [#15333 — Intermittent crash during forward pass](https://github.com/ollama/ollama/issues/15333) | Open | Auto-retry trimming 0.5s per attempt (changes token count to avoid GGML kernel alignment bug) |
+| [#15427 — No official audio documentation](https://github.com/ollama/ollama/issues/15427) | Open | Proxy enforces WAV 16kHz mono with RIFF header and correct modal ordering |
+| [#11798 — No `audio` field in the API](https://github.com/ollama/ollama/issues/11798) | Open | Audio is passed through the `images` field with correct RIFF/WAVE magic bytes |
+
+The proxy also forces `num_ctx=8192` on audio requests to prevent embeddings from competing with the KV cache.
+
+</details>
+
+<details>
+<summary>🇧🇷 Português</summary>
+
+## Known Issues & Mitigações
+
+Existem bugs ativos no Ollama/llama.cpp afetando o áudio com gemma4:e4b. Este proxy os mitiga automaticamente.
+
+| Issue | Status | Mitigação |
+|---|---|---|
+| [#15333 — Crash intermitente durante o forward pass](https://github.com/ollama/ollama/issues/15333) | Aberto | Retry automático cortando 0.5s por tentativa (muda o token count para evitar o bug de alinhamento nos kernels GGML) |
+| [#15427 — Sem documentação oficial de áudio](https://github.com/ollama/ollama/issues/15427) | Aberto | O proxy força WAV 16kHz mono com header RIFF e ordenação correta das modalidades |
+| [#11798 — Campo `audio` não existe na API](https://github.com/ollama/ollama/issues/11798) | Aberto | O áudio é passado pelo campo `images` com os magic bytes RIFF/WAVE corretos |
+
+O proxy também força `num_ctx=8192` em requests de áudio para evitar que os embeddings compitam com o KV cache.
+
+</details>
+
 ## Licencia
 
 MIT — ver [LICENSE](LICENSE).
